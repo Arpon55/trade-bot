@@ -26,28 +26,29 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ আপনার free limit শেষ।")
         return
     await update.message.reply_text("🔍 Analyzing chart...")
-    photo = update.message.photo[-1]
-    file = await context.bot.get_file(photo.file_id)
-    img_bytes = requests.get(file.file_path).content
-    img_base64 = base64.b64encode(img_bytes).decode()
-    client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
-    response = client.messages.create(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=800,
-        messages=[{
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/jpeg",
-                        "data": img_base64
-                    }
-                },
-                {
-                    "type": "text",
-                    "text": """Analyze this binary options trading chart and respond in this exact format:
+    try:
+        photo = update.message.photo[-1]
+        file = await context.bot.get_file(photo.file_id)
+        img_bytes = requests.get(file.file_path).content
+        img_base64 = base64.b64encode(img_bytes).decode()
+        client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
+        response = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=800,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "image/jpeg",
+                            "data": img_base64
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": """Analyze this binary options trading chart and respond in this exact format:
 
 SIGNAL: [CALL or PUT]
 STRENGTH: [50-95%]
@@ -56,23 +57,25 @@ SUPPORT: [price level]
 RESISTANCE: [price level]
 LOGIC: [2-3 sentences explanation]
 MARTINGALE: [+1 If Needed or No]"""
-                }
-            ]
-        }]
-    )
-    result = response.content[0].text
-    direction = "GO FOR BUY ⬆️" if "CALL" in result.upper() else "GO FOR SELL ⬇️"
-    signal_emoji = "🟢" if "CALL" in result.upper() else "🔴"
-    user_requests[user_id] -= 1
-    remaining = user_requests[user_id]
-    msg = f"""{signal_emoji} MASK AI BOT REPORT
+                    }
+                ]
+            }]
+        )
+        result = response.content[0].text
+        direction = "GO FOR BUY ⬆️" if "CALL" in result.upper() else "GO FOR SELL ⬇️"
+        signal_emoji = "🟢" if "CALL" in result.upper() else "🔴"
+        user_requests[user_id] -= 1
+        remaining = user_requests[user_id]
+        msg = f"""{signal_emoji} MASK AI BOT REPORT
 
 {result}
 
 📊 {direction}
 ✅ Remaining: {remaining}
 ⚡ Powered by Mask AI Bot"""
-    await update.message.reply_text(msg)
+        await update.message.reply_text(msg)
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
