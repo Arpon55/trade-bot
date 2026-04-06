@@ -1,9 +1,10 @@
-import google.generativeai as genai
 import requests
 import os
 import base64
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
+from google import genai
+from google.genai import types
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -31,14 +32,9 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file = await context.bot.get_file(photo.file_id)
         img_bytes = requests.get(file.file_path).content
         img_base64 = base64.b64encode(img_bytes).decode()
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        image_part = {
-            "inline_data": {
-                "mime_type": "image/jpeg",
-                "data": img_base64
-            }
-        }
+
+        client = genai.Client(api_key=GEMINI_API_KEY)
+
         prompt = """Analyze this binary options trading chart and respond in this exact format:
 
 SIGNAL: [CALL or PUT]
@@ -48,7 +44,15 @@ SUPPORT: [price level]
 RESISTANCE: [price level]
 LOGIC: [2-3 sentences explanation]
 MARTINGALE: [+1 If Needed or No]"""
-        response = model.generate_content([image_part, prompt])
+
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=[
+                types.Part.from_bytes(data=img_bytes, mime_type="image/jpeg"),
+                prompt
+            ]
+        )
+
         result = response.text
         direction = "GO FOR BUY ⬆️" if "CALL" in result.upper() else "GO FOR SELL ⬇️"
         signal_emoji = "🟢" if "CALL" in result.upper() else "🔴"
@@ -69,4 +73,4 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.PHOTO, analyze))
-    app.run_polling()       
+    app.run_polling()
