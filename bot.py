@@ -3,7 +3,7 @@ import base64
 import requests
 import os
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
@@ -15,8 +15,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🤖 MASK AI Trading Bot\n\n"
         "✅ Chart screenshot পাঠান\n"
-        "⚡ ৫ সেকেন্ডে analysis পাবেন\n\n"
-        "📸 এখনই একটা chart screenshot পাঠান!"
+        "⚡ ৫ সেকেন্ডে analysis পাবেন!"
     )
 
 async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -62,27 +61,21 @@ MARTINGALE: [+1 If Needed or No]"""
         }]
     )
     result = response.content[0].text
-    signal_emoji = "🟢" if "CALL" in result.upper() else "🔴"
     direction = "GO FOR BUY ⬆️" if "CALL" in result.upper() else "GO FOR SELL ⬇️"
+    signal_emoji = "🟢" if "CALL" in result.upper() else "🔴"
     user_requests[user_id] -= 1
     remaining = user_requests[user_id]
     msg = f"""{signal_emoji} MASK AI BOT REPORT
 
-➤ SIGNAL DETAILS
-
 {result}
 
 📊 {direction}
-✅ Remaining requests: {remaining}
-
+✅ Remaining: {remaining}
 ⚡ Powered by Mask AI Bot"""
     await update.message.reply_text(msg)
 
-def main():
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
+if __name__ == "__main__":
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.PHOTO, analyze))
     app.run_polling()
-
-if __name__ == "__main__":
-    main()
