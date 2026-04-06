@@ -32,7 +32,7 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     img_base64 = base64.b64encode(img_bytes).decode()
     client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
     response = client.messages.create(
-        model="claude-opus-4-5",
+        model="claude-3-5-sonnet-20241022",
         max_tokens=800,
         messages=[{
             "role": "user",
