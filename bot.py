@@ -1,15 +1,15 @@
-import anthropic
-import base64
+import google.generativeai as genai
 import requests
 import os
+import base64
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 user_requests = {}
-FREE_LIMIT = 5
+FREE_LIMIT = 50
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
@@ -23,7 +23,7 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_id not in user_requests:
         user_requests[user_id] = FREE_LIMIT
     if user_requests[user_id] <= 0:
-        await update.message.reply_text("❌ আপনার free limit শেষ।")
+        await update.message.reply_text("❌ আপনার limit শেষ।")
         return
     await update.message.reply_text("🔍 Analyzing chart...")
     try:
@@ -31,24 +31,15 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
         file = await context.bot.get_file(photo.file_id)
         img_bytes = requests.get(file.file_path).content
         img_base64 = base64.b64encode(img_bytes).decode()
-        client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
-        response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=800,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/jpeg",
-                            "data": img_base64
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": """Analyze this binary options trading chart and respond in this exact format:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        image_part = {
+            "inline_data": {
+                "mime_type": "image/jpeg",
+                "data": img_base64
+            }
+        }
+        prompt = """Analyze this binary options trading chart and respond in this exact format:
 
 SIGNAL: [CALL or PUT]
 STRENGTH: [50-95%]
@@ -57,11 +48,8 @@ SUPPORT: [price level]
 RESISTANCE: [price level]
 LOGIC: [2-3 sentences explanation]
 MARTINGALE: [+1 If Needed or No]"""
-                    }
-                ]
-            }]
-        )
-        result = response.content[0].text
+        response = model.generate_content([image_part, prompt])
+        result = response.text
         direction = "GO FOR BUY ⬆️" if "CALL" in result.upper() else "GO FOR SELL ⬇️"
         signal_emoji = "🟢" if "CALL" in result.upper() else "🔴"
         user_requests[user_id] -= 1
@@ -81,4 +69,4 @@ if __name__ == "__main__":
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.PHOTO, analyze))
-    app.run_polling()
+    app.run_polling()       
