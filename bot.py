@@ -32,7 +32,7 @@ async def analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
         img_bytes = requests.get(file.file_path).content
         img_base64 = base64.b64encode(img_bytes).decode()
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash-latest")
+        model = genai.GenerativeModel("gemini-pro-vision")
         image_part = {
             "inline_data": {
                 "mime_type": "image/jpeg",
